@@ -1,0 +1,19 @@
+---
+import FractalDashboard from '../components/FractalDashboard';
+---
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>FRAS: Fractal Regime-Adaptive System</title>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen font-mono">
+    <header class="border-b border-gray-800 p-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold text-emerald-400">FRAS <span class="text-gray-500 text-sm font-normal">v1.0 | Hurst DFA Engine</span></h1>
+        <div class="text-xs text-gray-500">Macro TF: 4H | Micro TF: 15m</div>
+    </header>
+    <main class="p-4 md:p-8">
+        <FractalDashboard client:load />
+    </main>
+</body>
+</html>
