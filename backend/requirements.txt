@@ -3,3 +3,9 @@ uvicorn[standard]
 ccxt
 pandas
 numpy
+fakeredis
+pydantic-settings
+httpx
+pytest
+pytest-asyncio
+httpx

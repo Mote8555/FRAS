@@ -27,23 +27,34 @@ conviction = min(|H - 0.5| × 4, 2.0)
 ## Architecture
 
 ```
-[Exchange API (Binance)]
-       │ (OHLCV Data)
+[Exchange APIs (Binance / Bybit / Coinbase)]
+       │ (OHLCV Data via ccxt)
        ▼
-[Python FastAPI Backend] ──(numpy/pandas)──> Calculates DFA & Hurst Exponent
-       │ (JSON Payload)
+[Python FastAPI Backend]
+  ├── services/dfa.py        — DFA & Hurst computation
+  ├── services/exchange.py   — Exchange factory
+  ├── services/cache.py      — Redis/fakeredis caching
+  ├── services/webhooks.py   — Telegram/Discord alerts
+  ├── routes/analysis.py     — REST /api/v2/analyze
+  └── routes/ws.py           — WebSocket /api/v2/ws
+       │ (JSON over REST + WebSocket push)
        ▼
-[Astro Frontend Shell] ──(React Island)──> Renders UI & Lightweight Charts
+[Astro Frontend Shell] ──(React Islands)──> Renders UI & Lightweight Charts
        │
        ▼
 [End User Browser]
 ```
 
+### Connectivity
+
+- **Primary:** WebSocket (`ws://localhost:8000/api/v2/ws`) — real-time push on candle close
+- **Fallback:** REST polling (`GET /api/v2/analyze`) every 60s if WebSocket disconnects
+- **Cache:** fakeredis (dev) / Redis (prod) reduces exchange API calls
+
 ### Tech Stack
 
-**Backend:** Python 3.11+, FastAPI, ccxt, pandas, numpy, Uvicorn  
-**Frontend:** Astro 4, React 18, Tailwind CSS, lightweight-charts 4  
-**Infrastructure:** Docker-ready (see Roadmap)
+**Backend:** Python 3.10+, FastAPI, ccxt, pandas, numpy, fakeredis, pydantic-settings, Uvicorn  
+**Frontend:** Astro 4, React 18, Tailwind CSS, lightweight-charts 4
 
 ---
 
@@ -52,22 +63,56 @@ conviction = min(|H - 0.5| × 4, 2.0)
 ```
 fractaltrade/
 ├── backend/
-│   ├── main.py              # FastAPI server — DFA calculation + REST endpoint
-│   ├── requirements.txt     # Python dependencies
-│   └── venv/                # Python virtual environment
+│   ├── core/
+│   │   ├── config.py           # pydantic-settings (env vars + defaults)
+│   │   └── dependencies.py     # Redis singleton provider
+│   ├── models/
+│   │   └── schemas.py          # Pydantic request/response models
+│   ├── services/
+│   │   ├── dfa.py              # DFA & Hurst computation
+│   │   ├── exchange.py         # Exchange factory (Binance, Bybit, Coinbase)
+│   │   ├── cache.py            # Redis caching layer
+│   │   └── webhooks.py         # Telegram & Discord alerting
+│   ├── routes/
+│   │   ├── analysis.py         # GET /api/v2/analyze
+│   │   └── ws.py               # WS /api/v2/ws
+│   ├── tests/
+│   │   ├── test_dfa.py
+│   │   ├── test_cache.py
+│   │   └── test_routes.py
+│   ├── main.py                 # FastAPI entry point
+│   ├── requirements.txt
+│   └── pytest.ini
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
-│   │   │   └── index.astro      # Entry page — dark shell + header
-│   │   └── components/
-│   │       └── FractalDashboard.tsx  # React island — all UI logic
-│   ├── astro.config.mjs       # Astro config (React + Tailwind)
-│   ├── tailwind.config.mjs    # Tailwind configuration
+│   │   │   └── index.astro          # Entry page
+│   │   ├── components/
+│   │   │   ├── Dashboard.tsx         # Main orchestrator
+│   │   │   ├── AssetSelector.tsx     # Symbol dropdown
+│   │   │   ├── ExchangeSelector.tsx  # Exchange dropdown
+│   │   │   ├── TimeframeSelector.tsx # Multi-select timeframe chips
+│   │   │   ├── DfaWindowSlider.tsx   # DFA window slider
+│   │   │   ├── RegimePanel.tsx       # Regime card
+│   │   │   ├── HurstGauge.tsx        # H gauge bar
+│   │   │   ├── ConvictionBadge.tsx   # Risk multiplier
+│   │   │   ├── MultiTimeframeGrid.tsx # Side-by-side H table
+│   │   │   ├── CandlestickChart.tsx  # OHLCV + volume histogram
+│   │   │   ├── HurstTimelineChart.tsx # H-over-time line chart
+│   │   │   └── WebhookSettings.tsx   # Telegram/Discord config
+│   │   ├── hooks/
+│   │   │   ├── useMarketData.ts      # WebSocket + REST fallback
+│   │   │   └── useSettings.ts        # localStorage persistence
+│   │   └── lib/
+│   │       └── types.ts              # Shared TypeScript types
+│   ├── astro.config.mjs
+│   ├── tailwind.config.mjs
 │   ├── package.json
 │   └── tsconfig.json
-├── prd.md                    # Product Requirements Document
-├── start_backend.sh          # Backend launcher
-├── start_frontend.sh         # Frontend launcher
+├── prd.md
+├── CHANGELOG.md
+├── start_backend.sh
+├── start_frontend.sh
 └── README.md
 ```
 
@@ -79,7 +124,7 @@ fractaltrade/
 
 - Python 3.10+
 - Node.js 18+
-- Internet connection (for Binance API)
+- Internet connection (for exchange APIs)
 
 ### Backend
 
@@ -101,62 +146,119 @@ npm run dev
 
 Open **http://localhost:4321** in your browser.
 
+### Running Tests
+
+```bash
+cd backend
+source venv/bin/activate
+pytest tests/ -v
+```
+
 ---
 
-## API
+## API (v2)
 
-### `GET /api/market-structure/{symbol}`
+### `GET /api/v2/analyze`
 
-Returns the Hurst exponent, regime classification, conviction multiplier, trading directive, and OHLCV chart data for the requested asset.
+Returns the Hurst exponent, regime classification, conviction multiplier, and OHLCV chart data for the requested asset.
 
-**Default symbol:** `BTC/USDT`  
-**Timeframe:** 4H  
-**Lookback:** 200 candles  
-**DFA window:** 150 periods
+**Query Parameters:**
+
+| Parameter | Default | Description |
+|---|---|---|
+| `symbol` | `BTC/USDT` | Trading pair |
+| `exchange` | `binance` | Exchange (`binance`, `bybit`, `coinbase`) |
+| `timeframes` | `4h` | Comma-separated timeframes (`1h,4h,1d`) |
+| `dfa_window` | `150` | Rolling DFA window size |
 
 **Response:**
 
 ```json
 {
   "symbol": "BTC/USDT",
-  "hurst_exponent": 0.5486,
-  "regime": "Random_Walk",
-  "conviction_multiplier": 0.19,
-  "action": "FLAT. Sit in cash.",
+  "exchange": "binance",
+  "dfa_window": 150,
+  "results": [
+    {
+      "timeframe": "1h",
+      "hurst_exponent": 0.42,
+      "regime": "Mean_Reverting",
+      "conviction_multiplier": 0.32,
+      "action": "Deploy Bollinger/RSI Mean Reversion."
+    },
+    {
+      "timeframe": "4h",
+      "hurst_exponent": 0.61,
+      "regime": "Trending",
+      "conviction_multiplier": 0.44,
+      "action": "Deploy Momentum/Breakout Strategy."
+    }
+  ],
   "chart_data": [
     { "time": 1776916800, "open": 77746.47, "high": 78339.35, "low": 77675.8, "close": 78048.62 }
+  ],
+  "volume_data": [
+    { "time": 1776916800, "value": 1234.5, "color": "#10B981" }
+  ],
+  "h_history": [
+    { "time": 1776916800, "value": 0.58 }
   ]
 }
 ```
 
-**Error responses:**
+### `WS /api/v2/ws`
 
-| Code | Condition |
-|---|---|
-| 422 | Insufficient liquidity (< $10M 24h volume) |
-| 502 | Exchange API unavailable / rate limited |
-| 500 | Internal server error |
+WebSocket endpoint for real-time updates.
+
+**Subscribe:**
+
+```json
+{
+  "action": "subscribe",
+  "symbol": "BTC/USDT",
+  "exchange": "binance",
+  "timeframes": ["1h", "4h"],
+  "dfa_window": 150
+}
+```
+
+**Server push:**
+
+```json
+{
+  "type": "analysis",
+  "data": { /* same shape as REST response */ }
+}
+```
 
 ---
 
 ## Dashboard UI
 
-| Feature | Implemented? |
+| Feature | Status |
 |---|---|
-| Color-coded regime display (Green=Trend, Blue=Mean Rev, Gray=Random) | Yes |
-| Hurst Gauge (0.30–0.70 spectrum with needle) | Yes |
-| Candlestick chart (lightweight-charts, dark theme) | Yes |
-| Conviction Multiplier display | Yes |
-| Plain-English trading directives | Yes |
-| "Not Financial Advice" disclaimer | Yes |
-| 60s auto-refresh polling | Yes |
-| Asset switching (ticker input) | No |
+| Color-coded regime display (Green=Trend, Blue=Mean Rev, Gray=Random) | ✅ |
+| Hurst Gauge (0.30–0.70 spectrum with needle) | ✅ |
+| Candlestick chart (lightweight-charts, dark theme) | ✅ |
+| Volume histogram sub-pane | ✅ |
+| Conviction Multiplier display | ✅ |
+| Plain-English trading directives | ✅ |
+| Asset switching (BTC/USDT, ETH/USDT, SOL/USDT) | ✅ |
+| Multi-exchange support (Binance, Bybit, Coinbase) | ✅ |
+| Multi-timeframe analysis (side-by-side H table) | ✅ |
+| Configurable DFA window slider | ✅ |
+| Historical H timeline chart | ✅ |
+| WebSocket real-time updates | ✅ |
+| Redis/fakeredis caching | ✅ |
+| Telegram/Discord webhook alerts | ✅ |
+| 60s REST polling fallback | ✅ |
+| "Not Financial Advice" disclaimer | ✅ |
 
 ---
 
 ## Roadmap
 
-### Phase 1: MVP ✅ (Current)
+### Phase 1: MVP ✅
 
 - [x] Single asset (BTC/USDT)
 - [x] 4H timeframe analysis
@@ -168,17 +270,17 @@ Returns the Hurst exponent, regime classification, conviction multiplier, tradin
 - [x] Thread pool for non-blocking DFA computation
 - [x] "Not Financial Advice" disclaimer
 
-### Phase 2: Prosumer Expansion (V2)
+### Phase 2: Prosumer Expansion ✅ (Current)
 
-- [ ] **Asset switching** — User-selectable ticker symbol (ETH/USDT, SOL/USDT, etc.)
-- [ ] **Multi-exchange support** — Bybit, Coinbase via UI dropdown
-- [ ] **WebSockets** — Real-time H updates on candle close
-- [ ] **Multi-timeframe analysis** — Daily H vs 1H H side by side
-- [ ] **Configurable DFA window** — User-defined rolling window size
-- [ ] **Telegram/Discord webhooks** — Alerts for "Regime Flips"
-- [ ] **Redis caching** — Avoid exchange rate limits, sub-250ms cached responses
-- [ ] **Historical H timeline** — Plot H over time to see regime transitions
-- [ ] **Volume histogram** — Sub-pane on the chart
+- [x] **Asset switching** — User-selectable ticker symbol (ETH/USDT, SOL/USDT, etc.)
+- [x] **Multi-exchange support** — Bybit, Coinbase via UI dropdown
+- [x] **WebSockets** — Real-time H updates on candle close
+- [x] **Multi-timeframe analysis** — Daily H vs 1H H side by side
+- [x] **Configurable DFA window** — User-defined rolling window size
+- [x] **Telegram/Discord webhooks** — Alerts for "Regime Flips"
+- [x] **Redis caching** — Avoid exchange rate limits, sub-250ms cached responses
+- [x] **Historical H timeline** — Plot H over time to see regime transitions
+- [x] **Volume histogram** — Sub-pane on the chart
 
 ### Phase 3: Institutional / Auto-Trading (V3)
 
@@ -196,8 +298,8 @@ Returns the Hurst exponent, regime classification, conviction multiplier, tradin
 | Risk | Mitigation |
 |---|---|
 | Low-liquidity assets produce garbage DFA | Volume filter: rejects assets with < $10M 24h volume |
-| Exchange rate limiting / IP bans | Redis caching + only fetch on new candle close (*pending V2*) |
-| DFA blocks the Python event loop | ThreadPoolExecutor runs DFA off the main async loop |
+| Exchange rate limiting / IP bans | Redis caching + only fetch on new candle close (implemented in V2) |
+| DFA blocks the Python event loop | ThreadPoolExecutor runs DFA off the main async loop (V1); non-blocking async design (V2) |
 | Users misinterpret as buy/sell signals | "Mathematical Regime Analysis — Not Financial Advice" disclaimer |
 
 ---
