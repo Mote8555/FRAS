@@ -44,7 +44,7 @@ async def run_analysis(
                 continue
             await set_ohlcv(redis, cache_key, df.to_dict("records"))
 
-        vol_usd = get_volume_usd(df)
+        vol_usd = get_volume_usd(df, tf)
         if vol_usd < settings.min_24h_volume_usd:
             results.append(TimeframeResult(
                 timeframe=tf, hurst_exponent=0.5, regime="Low_Liquidity",

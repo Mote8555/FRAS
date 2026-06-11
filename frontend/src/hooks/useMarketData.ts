@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { AnalysisResponse } from '../lib/types';
 
-const WS_URL = 'ws://localhost:8000/api/v2/ws';
-const REST_URL = 'http://localhost:8000/api/v2/analyze';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+const WS_URL = `${API_URL.replace(/^http/, 'ws')}/api/v2/ws`;
+const REST_URL = `${API_URL}/api/v2/analyze`;
 
 export function useMarketData(params: {
   symbol: string;

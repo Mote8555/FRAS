@@ -1,3 +1,6 @@
+import math
+import re
+
 import ccxt
 import pandas as pd
 
@@ -17,7 +20,7 @@ def fetch_ohlcv(exchange_id: str, symbol: str, timeframe: str, limit: int = 200)
         raise ExchangeError(f"Unsupported exchange: {exchange_id}")
 
     exchange_class = SUPPORTED_EXCHANGES[exchange_id]
-    exchange = exchange_class()
+    exchange = exchange_class({"enableRateLimit": True})
 
     try:
         ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
@@ -30,7 +33,28 @@ def fetch_ohlcv(exchange_id: str, symbol: str, timeframe: str, limit: int = 200)
     return df
 
 
-def get_volume_usd(df: pd.DataFrame) -> float:
-    recent_volume = df["volume"].tail(6).sum()
-    recent_close = df["close"].iloc[-1]
-    return float(recent_volume * recent_close)
+def parse_timeframe_to_minutes(timeframe: str) -> int:
+    match = re.fullmatch(r"(\d+)([mhd])", timeframe.strip().lower())
+    if not match:
+        raise ValueError(f"Unsupported timeframe: {timeframe}")
+
+    value, unit = match.groups()
+    value = int(value)
+    if unit == "m":
+        return value
+    if unit == "h":
+        return value * 60
+    if unit == "d":
+        return value * 24 * 60
+    raise ValueError(f"Unsupported timeframe: {timeframe}")
+
+
+def get_volume_usd(df: pd.DataFrame, timeframe: str) -> float:
+    if df.empty:
+        return 0.0
+
+    timeframe_minutes = parse_timeframe_to_minutes(timeframe)
+    candles_required = max(1, math.ceil(1440 / timeframe_minutes))
+    recent = df.tail(candles_required)
+    volume_usd = (recent["volume"] * recent["close"]).sum()
+    return float(volume_usd)
