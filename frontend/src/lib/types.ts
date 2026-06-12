@@ -47,7 +47,7 @@ export interface FrasSettings {
 
 export const DEFAULT_SETTINGS: FrasSettings = {
   symbol: 'BTC/USDT',
-  exchange: 'binance',
+  exchange: 'kraken',
   timeframes: ['4h'],
   dfa_window: 150,
   telegram_token: '',
@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: FrasSettings = {
 
 export const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
 
-export const EXCHANGES = ['binance', 'bybit', 'coinbase'];
+export const EXCHANGES = ['kraken', 'coinbase'];
 
 export const TIMEFRAMES = ['15m', '1h', '4h', '1d'];
 

@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
-    default_exchange: str = "binance"
+    default_exchange: str = "kraken"
     default_symbol: str = "BTC/USDT"
     default_timeframes: str = "4h"
     default_dfa_window: int = 150

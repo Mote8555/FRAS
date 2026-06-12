@@ -167,7 +167,7 @@ Returns the Hurst exponent, regime classification, conviction multiplier, and OH
 | Parameter | Default | Description |
 |---|---|---|
 | `symbol` | `BTC/USDT` | Trading pair |
-| `exchange` | `binance` | Exchange (`binance`, `bybit`, `coinbase`) |
+| `exchange` | `binance` | Exchange (`kraken`, `coinbase`) |
 | `timeframes` | `4h` | Comma-separated timeframes (`1h,4h,1d`) |
 | `dfa_window` | `150` | Rolling DFA window size |
 

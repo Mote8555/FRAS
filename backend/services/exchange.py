@@ -5,9 +5,13 @@ import ccxt
 import pandas as pd
 
 SUPPORTED_EXCHANGES = {
-    "binance": ccxt.binance,
-    "bybit": ccxt.bybit,
+    "kraken": ccxt.kraken,
     "coinbase": ccxt.coinbase,
+}
+
+EXCHANGE_TIMEFRAMES = {
+    "kraken": None,
+    "coinbase": {"15m", "1h", "2h", "6h", "1d"},
 }
 
 
@@ -18,6 +22,14 @@ class ExchangeError(Exception):
 def fetch_ohlcv(exchange_id: str, symbol: str, timeframe: str, limit: int = 200) -> pd.DataFrame:
     if exchange_id not in SUPPORTED_EXCHANGES:
         raise ExchangeError(f"Unsupported exchange: {exchange_id}")
+
+    supported = EXCHANGE_TIMEFRAMES.get(exchange_id)
+    if supported is not None and timeframe not in supported:
+        available = ", ".join(sorted(supported))
+        raise ExchangeError(
+            f"{exchange_id} does not support timeframe '{timeframe}'. "
+            f"Available timeframes: {available}"
+        )
 
     exchange_class = SUPPORTED_EXCHANGES[exchange_id]
     exchange = exchange_class({"enableRateLimit": True})

@@ -57,6 +57,7 @@ export default function Dashboard() {
         />
         <TimeframeSelector
           values={settings.timeframes}
+          exchange={settings.exchange}
           onChange={(v) => setSettings({ ...settings, timeframes: v })}
         />
         <DfaWindowSlider
