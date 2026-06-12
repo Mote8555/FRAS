@@ -61,6 +61,11 @@ export const EXCHANGES = ['kraken', 'coinbase'];
 
 export const TIMEFRAMES = ['15m', '1h', '4h', '1d'];
 
+export const EXCHANGE_TIMEFRAMES: Record<string, string[]> = {
+  kraken: ['15m', '1h', '4h', '1d'],
+  coinbase: ['15m', '1h', '2h', '6h', '1d'],
+};
+
 export const REGIME_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   Trending: {
     bg: 'rgba(16, 185, 129, 0.1)',

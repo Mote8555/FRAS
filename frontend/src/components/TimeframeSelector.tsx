@@ -36,7 +36,7 @@ export default function TimeframeSelector({ values, exchange, onChange }: Props)
                   ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-700'
                   : isSupported
                     ? 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-500'
-                    : 'bg-gray-850 text-gray-600 border border-gray-800 cursor-not-allowed line-through opacity-50'
+                    : 'bg-gray-900 text-gray-600 border border-gray-800 cursor-not-allowed line-through opacity-50'
               }`}
             >
               {tf}
