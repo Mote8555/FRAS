@@ -1,3 +1,6 @@
+import json
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +24,15 @@ class Settings(BaseSettings):
     poll_interval_seconds: int = 60
     min_24h_volume_usd: float = 10_000_000
     h_history_max: int = 500
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def split_cors_origins(cls, v):
+        if isinstance(v, str):
+            if v.startswith("[") and v.endswith("]"):
+                return json.loads(v)
+            return [origin.strip() for origin in v.split(",")]
+        return v
 
 
 settings = Settings()
