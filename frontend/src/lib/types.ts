@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: FrasSettings = {
   discord_webhook_url: '',
 };
 
-export const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
+export const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LINK/USDT', 'AVAX/USDT', 'DOGE/USDT', 'ADA/USDT', 'WLD/USDT'];
 
 export const EXCHANGES = ['kraken', 'coinbase'];
 
