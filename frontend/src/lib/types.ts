@@ -1,5 +1,7 @@
+import type { Time } from 'lightweight-charts';
+
 export interface Candle {
-  time: number;
+  time: Time;
   open: number;
   high: number;
   low: number;
@@ -7,13 +9,13 @@ export interface Candle {
 }
 
 export interface VolumeBar {
-  time: number;
+  time: Time;
   value: number;
   color: string;
 }
 
 export interface HPoint {
-  time: number;
+  time: Time;
   value: number;
 }
 

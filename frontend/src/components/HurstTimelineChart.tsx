@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { createChart } from 'lightweight-charts';
+import type { Time } from 'lightweight-charts';
 import type { HPoint } from '../lib/types';
 
 function sortDedup(data: HPoint[]): HPoint[] {
-  const map = new Map<number, HPoint>();
+  const map = new Map<Time, HPoint>();
   for (const item of data) map.set(item.time, item);
-  return Array.from(map.values()).sort((a, b) => a.time - b.time);
+  return Array.from(map.values()).sort((a, b) => Number(a.time) - Number(b.time));
 }
 
 interface Props {
