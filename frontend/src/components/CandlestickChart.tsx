@@ -87,7 +87,16 @@ export default function CandlestickChart({ symbol, candles, volumes, height = 40
           <span className="text-sm text-gray-500 font-normal">Macro Chart</span>
         </h2>
       </div>
-      <div ref={containerRef} className="w-full" />
+      {!candles.length ? (
+        <div
+          className="w-full flex items-center justify-center text-gray-600 text-sm"
+          style={{ height, minHeight: height }}
+        >
+          Waiting for chart data...
+        </div>
+      ) : (
+        <div ref={containerRef} className="w-full" style={{ minHeight: height }} />
+      )}
     </div>
   );
 }
